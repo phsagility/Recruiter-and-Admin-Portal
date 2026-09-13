@@ -571,7 +571,7 @@ const additionalPreEmploymentEmailEndpoint = 'https://script.google.com/macros/s
 const medicalEmailEndpoint = 'https://script.google.com/macros/s/AKfycby0GuvNfqRGmJCHKvj9Xq7ch6pRDiQNrwQU4kzGkjA5fLVy1muvetx_8KoApOxkhOxH/exec';
 const publicPortalBaseUrl = 'https://recruiteradminportal.sagilife.online';
 const deployedPortalBaseUrl = window.location.protocol === 'http:' || window.location.protocol === 'https:'
-  ? window.location.origin
+  ? new URL('./', window.location.href).href.replace(/\/$/, '')
   : publicPortalBaseUrl;
 const portalBaseUrl = (window.portalBaseUrl || deployedPortalBaseUrl).replace(/\/$/, '');
 const notesCacheStorageKey = 'sagility-notes-cache';
