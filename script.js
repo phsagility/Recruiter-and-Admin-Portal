@@ -569,8 +569,11 @@ refreshCheckboxCollections();
 const preEmploymentEmailEndpoint = 'https://script.google.com/macros/s/AKfycbzxI1W_Yu82sJtHag_FyyjKTQAwNRZGQeWLgqXoQWwj1gk9f8Eqs_hYS6Pc80PmslgT/exec';
 const additionalPreEmploymentEmailEndpoint = 'https://script.google.com/macros/s/AKfycbwjDa8Oc9UsI2uIcDBEWs2Nq9TScg80xwoG-iiIFgK1AsC_x20bklS8SnvMF09mUjUFjw/exec';
 const medicalEmailEndpoint = 'https://script.google.com/macros/s/AKfycby0GuvNfqRGmJCHKvj9Xq7ch6pRDiQNrwQU4kzGkjA5fLVy1muvetx_8KoApOxkhOxH/exec';
-const publicPortalBaseUrl = 'https://phsagility.github.io/Recruiter-and-Admin-Portal';
-const portalBaseUrl = (window.portalBaseUrl || publicPortalBaseUrl).replace(/\/$/, '');
+const publicPortalBaseUrl = 'https://recruiteradminportal.sagilife.online';
+const deployedPortalBaseUrl = window.location.protocol === 'http:' || window.location.protocol === 'https:'
+  ? window.location.origin
+  : publicPortalBaseUrl;
+const portalBaseUrl = (window.portalBaseUrl || deployedPortalBaseUrl).replace(/\/$/, '');
 const notesCacheStorageKey = 'sagility-notes-cache';
 const selectedContainer = document.querySelector('#selectedPackagesContainer');
 const clearButton = document.querySelector('#clearButton');

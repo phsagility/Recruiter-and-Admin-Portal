@@ -1,12 +1,32 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="portal-login-locked">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sagility Recruiter and Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=mobile-header-1">
 </head>
-<body>
+<body class="portal-locked">
+  <main id="portalLoginView" class="portal-login-view" aria-labelledby="portalLoginTitle">
+    <section class="portal-login-card">
+      <img class="portal-login-logo" src="logo.png" alt="Sagility">
+      <h1 id="portalLoginTitle">Pre-employment<br><em>and Medical Forms</em></h1>
+      <p>Sign in to access the recruiter and admin portal.</p>
+      <form id="portalLoginForm">
+        <label for="portalLoginEmail">Company email</label>
+        <input id="portalLoginEmail" type="email" autocomplete="username" required>
+        <label for="portalLoginPassword">Password</label>
+        <input id="portalLoginPassword" type="password" autocomplete="current-password" required>
+        <button type="submit" class="portal-login-submit">Log in <span aria-hidden="true">↗</span></button>
+        <button type="button" id="portalResetPassword" class="portal-reset-password">Reset password by email</button>
+        <p id="portalLoginMessage" role="alert"></p>
+      </form>
+    </section>
+  </main>
+
   <header class="top">
     <div class="logo"><img src="logo.png" alt="Sagility Logo" class="logo-img"></div>
     <div class="header-text-box">
@@ -15,7 +35,7 @@
       <p class="header-credit">Created by Richiel Caña</p>
     </div>
     <nav class="header-resource-nav" aria-label="Sagility resources">
-      <a href="https://sagilityassessment-cmyk.github.io/SagilityPH-Assessment/notes.html" target="_blank" rel="noopener noreferrer">Sagi Notes</a>
+      <a href="https://assessmentportal.sagilife.online/notes.html" target="_blank" rel="noopener noreferrer">Sagi Notes</a>
       <a href="https://sagilityassessment-cmyk.github.io/Catch-Up-En-Route-Videos_Sagility/" target="_blank" rel="noopener noreferrer">En-Route Videos</a>
       <a href="https://sagilityassessment-cmyk.github.io/sagilityhiringfiles/home.html" target="_blank" rel="noopener noreferrer">Sagility Hiring File</a>
       <a href="https://wd1-identity.myworkday.com/wday/authgwy/sagility/upc/login?redirect=n" target="_blank" rel="noopener noreferrer">Workday Outsource</a>
@@ -25,6 +45,7 @@
       <a href="https://sagilityphilhealther2.netlify.app/" target="_blank" rel="noopener noreferrer">PhilHealth ER2 Form</a>
       <a href="https://betainebvv.sharepoint.com/:x:/r/sites/VIRTUALASSESSMENT/Shared%20Documents/ASSESSMENT/ENDORSEMENT%20SHEET%20FOR%20ASSESSMENT%202026.xlsx?d=w2a8a9e8893ef43e7807f14d84fc9f237&csf=1&web=1&e=WEODYa" target="_blank" rel="noopener noreferrer">Assessment Endorsement Tracker</a>
     </nav>
+    <button id="portalLogoutBtn" class="portal-logout-btn" type="button">Log out</button>
   </header>
 
   <main class="grid">
@@ -256,6 +277,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-  <script src="script.js?v=preemployment-endpoint-11"></script>
+  <script src="portal-login.js?v=sagi-notes-auth-1"></script>
+  <script src="script.js?v=domain-fix-1"></script>
 </body>
 </html>
