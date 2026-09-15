@@ -246,6 +246,8 @@ function renderSentEmailHistory() {
   const records = getFilteredHistoryRecords();
   body.innerHTML = records.length ? records.map((record, index) => `
     <tr>
+      <td><input type="checkbox" class="history-delete-checkbox" data-record-id="${escapeHistoryHtml(record.id)}" aria-label="Select record for deletion"></td>
+      <td><button class="history-row-button history-view-button" type="button" data-record-id="${escapeHistoryHtml(record.id)}">View</button></td>
       <td>${index + 1}</td>
       <td>${escapeHistoryHtml(record.name)}</td>
       <td>${escapeHistoryHtml(record.email)}</td>
@@ -257,8 +259,6 @@ function renderSentEmailHistory() {
       <td>${escapeHistoryHtml(formatHistoryPosition(record.position || record.role))}</td>
       <td>${escapeHistoryHtml(record.location)}</td>
       <td>${escapeHistoryHtml(record.date)}</td>
-      <td><button class="history-row-button history-view-button" type="button" data-record-id="${escapeHistoryHtml(record.id)}">View</button></td>
-      <td><input type="checkbox" class="history-delete-checkbox" data-record-id="${escapeHistoryHtml(record.id)}" aria-label="Select record for deletion"></td>
     </tr>`).join('') : '<tr><td colspan="13">No sent email records found</td></tr>';
   body.querySelectorAll('.history-view-button').forEach((button) => button.addEventListener('click', () => {
     const record = sentEmailHistoryRecords.find((item) => item.id === button.dataset.recordId);
@@ -362,7 +362,7 @@ function getHistoryRecordDetails(record) {
 
 function initializeSentEmailHistory() {
   portalFirebaseAuthReady.then(() => portalFirestore.collection('sentHistory').orderBy('timestamp', 'desc').onSnapshot((snapshot) => {
-    sentEmailHistoryRecords = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    sentEmailHistoryRecords = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).filter((record) => record.source !== 'applicant-details-survey');
     renderSentEmailHistory();
     renderHistoryTrendGraph();
   }, () => {
@@ -370,6 +370,109 @@ function initializeSentEmailHistory() {
   })).catch(() => {
     document.querySelector('#sentEmailHistoryBody').innerHTML = '<tr><td colspan="13">History unavailable. Enable Firebase anonymous sign-in.</td></tr>';
   });
+}
+
+let applicantDetailsRecords = [];
+let applicantDetailsListener = null;
+const applicantDeletePassword = 'Sagility_1';
+
+function renderApplicantDetails() {
+  const body = document.querySelector('#applicantDetailsBody');
+  if (!body) return;
+  const search = document.querySelector('#applicantDetailsSearch')?.value.trim().toLowerCase() || '';
+  const records = applicantDetailsRecords.filter((record) => `${record.completeName || ''} ${record.personalEmail || ''} ${record.tin || ''} ${record.sss || ''}`.toLowerCase().includes(search));
+  body.innerHTML = records.length ? records.map((record, index) => `<tr>
+    <td><input class="applicant-delete-checkbox" type="checkbox" data-record-id="${escapeHistoryHtml(record.id)}" aria-label="Delete applicant details record"></td>
+    <td>${index + 1}</td>
+    <td>${escapeHistoryHtml(record.submittedAt ? new Date(record.submittedAt).toLocaleString() : '')}</td>
+    <td>${escapeHistoryHtml(normalizeProperCaseText(record.completeName))}</td>
+    <td>${escapeHistoryHtml(formatApplicantDate(record.dateOfBirth))}</td>
+    <td>${escapeHistoryHtml(calculateApplicantAge(record.dateOfBirth))}</td>
+    <td>${escapeHistoryHtml(normalizeProperCaseText(record.homeAddress))}</td>
+    <td>${escapeHistoryHtml(record.personalEmail)}</td>
+    <td>${escapeHistoryHtml(formatApplicantMobile(record.mobileNumber))}</td>
+    <td>${escapeHistoryHtml(formatApplicantIdentifier(record.tin))}</td>
+    <td>${escapeHistoryHtml(formatApplicantIdentifier(record.sss))}</td>
+    <td>${escapeHistoryHtml(normalizeProperCaseText(record.motherLastName || record.mothersMaidenName))}</td>
+    <td>${escapeHistoryHtml(normalizeProperCaseText(record.motherFirstName))}</td>
+    <td>${escapeHistoryHtml(normalizeProperCaseText(record.motherMiddleName))}</td>
+    <td>${escapeHistoryHtml(normalizeProperCaseText(record.motherSuffix))}</td>
+    <td>${record.privacyConsent ? 'Consented' : 'Not recorded'}</td>
+  </tr>`).join('') : '<tr><td colspan="16">No applicant details found.</td></tr>';
+  body.querySelectorAll('.applicant-delete-checkbox').forEach((checkbox) => checkbox.addEventListener('change', updateApplicantDetailsActions));
+  updateApplicantDetailsActions();
+}
+
+function formatApplicantDate(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[2]}/${match[3]}/${match[1]}` : String(value || '');
+}
+
+function formatApplicantIdentifier(value) {
+  return String(value || '').replace(/-/g, '');
+}
+
+function formatApplicantMobile(value) {
+  const normalized = String(value || '').replace(/[\s()-]/g, '');
+  return normalized.replace(/^\+63(9\d{9})$/, '0$1');
+}
+
+function calculateApplicantAge(value) {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return '';
+  const birthDate = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const birthdayHasPassed = today.getMonth() > birthDate.getMonth()
+    || (today.getMonth() === birthDate.getMonth() && today.getDate() >= birthDate.getDate());
+  if (!birthdayHasPassed) age -= 1;
+  return age >= 0 ? String(age) : '';
+}
+
+function updateApplicantDetailsActions() {
+  const checkboxes = [...document.querySelectorAll('.applicant-delete-checkbox')];
+  const selected = checkboxes.filter((checkbox) => checkbox.checked);
+  const selectAllButton = document.querySelector('#selectAllApplicantDetailsBtn');
+  const deleteButton = document.querySelector('#deleteSelectedApplicantDetailsBtn');
+  if (selectAllButton) selectAllButton.textContent = checkboxes.length && selected.length === checkboxes.length ? 'Clear All' : 'Select All';
+  if (deleteButton) deleteButton.disabled = selected.length === 0;
+}
+
+function initializeApplicantDetails() {
+  const body = document.querySelector('#applicantDetailsBody');
+  if (!body) return;
+  portalFirebaseAuthReady.then(() => {
+    if (applicantDetailsListener) applicantDetailsListener();
+    applicantDetailsListener = portalFirestore.collection('sentHistory').where('source', '==', 'applicant-details-survey').onSnapshot((snapshot) => {
+      applicantDetailsRecords = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })).sort((first, second) => String(second.submittedAt || '').localeCompare(String(first.submittedAt || '')));
+      renderApplicantDetails();
+      document.querySelector('#applicantDetailsStatus').textContent = `${applicantDetailsRecords.length} applicant record${applicantDetailsRecords.length === 1 ? '' : 's'} loaded.`;
+    }, () => {
+      body.innerHTML = '<tr><td colspan="16">Applicant details unavailable. Check Firebase Firestore rules.</td></tr>';
+    });
+  }).catch(() => { body.innerHTML = '<tr><td colspan="16">Applicant details unavailable. Enable Firebase anonymous sign-in.</td></tr>'; });
+}
+
+function exportApplicantDetails() {
+  const headers = ['Submitted', 'Complete Name', 'Date of Birth', 'Age', 'Home Address', 'Personal Email', 'Mobile Number', 'TIN', 'SSS', "Mother's Maiden Last Name", "Mother's Maiden First Name", "Mother's Maiden Middle Name", "Mother's Maiden Suffix", 'Privacy Consent'];
+  const from = document.querySelector('#applicantExportStart')?.value || '';
+  const end = document.querySelector('#applicantExportEnd')?.value || '';
+  if (from && end && from > end) {
+    document.querySelector('#applicantDetailsStatus').textContent = 'The From date must be before the End date.';
+    return;
+  }
+  const records = applicantDetailsRecords.filter((record) => {
+    const dateKey = String(record.submittedAt || '').slice(0, 10);
+    return (!from || dateKey >= from) && (!end || dateKey <= end);
+  });
+  const rows = records.map((record) => [record.submittedAt ? new Date(record.submittedAt).toLocaleString() : '', normalizeProperCaseText(record.completeName), formatApplicantDate(record.dateOfBirth), calculateApplicantAge(record.dateOfBirth), normalizeProperCaseText(record.homeAddress), record.personalEmail, formatApplicantMobile(record.mobileNumber), formatApplicantIdentifier(record.tin), formatApplicantIdentifier(record.sss), normalizeProperCaseText(record.motherLastName || record.mothersMaidenName), normalizeProperCaseText(record.motherFirstName), normalizeProperCaseText(record.motherMiddleName), normalizeProperCaseText(record.motherSuffix), record.privacyConsent ? 'Consented' : 'Not recorded']);
+  const csv = [headers, ...rows].map((row) => row.map((value) => `"${String(value || '').replaceAll('"', '""')}"`).join(',')).join('\n');
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  link.download = 'applicant-details.csv';
+  link.click();
+  URL.revokeObjectURL(link.href);
+  document.querySelector('#applicantDetailsStatus').textContent = `${rows.length} applicant record${rows.length === 1 ? '' : 's'} exported.`;
 }
 
 function buildPackageColumns(entries) {
@@ -567,7 +670,7 @@ async function loadPackageForms() {
 
 refreshCheckboxCollections();
 const preEmploymentEmailEndpoint = 'https://script.google.com/macros/s/AKfycbwY-ASlmGJWQMtPcABtsoXuRCwFED3TiwQh05j2XFpX6o1ebs-bTqm6l_jirmE4G14/exec';
-const additionalPreEmploymentEmailEndpoint = 'https://script.google.com/macros/s/AKfycbwjDa8Oc9UsI2uIcDBEWs2Nq9TScg80xwoG-iiIFgK1AsC_x20bklS8SnvMF09mUjUFjw/exec';
+const additionalPreEmploymentEmailEndpoint = 'https://script.google.com/macros/s/AKfycbxnRDA410e-LJHUaOF0d1LOIfLFyLDltaZnbISd-rKRhZkiwkp4vY10N_k5V6-eTUGmqw/exec';
 const medicalEmailEndpoint = 'https://script.google.com/macros/s/AKfycby0GuvNfqRGmJCHKvj9Xq7ch6pRDiQNrwQU4kzGkjA5fLVy1muvetx_8KoApOxkhOxH/exec';
 const publicPortalBaseUrl = 'https://phsagility.github.io/Recruiter-and-Admin-Portal';
 const deployedPortalBaseUrl = window.location.protocol === 'http:' || window.location.protocol === 'https:'
@@ -1624,6 +1727,37 @@ document.querySelector('#historyExportBtn')?.addEventListener('click', () => {
   URL.revokeObjectURL(link.href);
   document.querySelector('#historyExportStatus').textContent = `${records.length} record(s) exported.`;
 });
+document.querySelector('#applicantDetailsSearch')?.addEventListener('input', renderApplicantDetails);
+document.querySelector('#refreshApplicantDetailsBtn')?.addEventListener('click', initializeApplicantDetails);
+document.querySelector('#exportApplicantDetailsBtn')?.addEventListener('click', exportApplicantDetails);
+document.querySelector('#selectAllApplicantDetailsBtn')?.addEventListener('click', () => {
+  const checkboxes = [...document.querySelectorAll('.applicant-delete-checkbox')];
+  const shouldSelect = checkboxes.some((checkbox) => !checkbox.checked);
+  checkboxes.forEach((checkbox) => { checkbox.checked = shouldSelect; });
+  updateApplicantDetailsActions();
+});
+document.querySelector('#deleteSelectedApplicantDetailsBtn')?.addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  const ids = [...document.querySelectorAll('.applicant-delete-checkbox:checked')].map((checkbox) => checkbox.dataset.recordId);
+  if (!ids.length) return;
+  const password = prompt('Enter the password to delete selected applicant records:');
+  if (password !== applicantDeletePassword) {
+    document.querySelector('#applicantDetailsStatus').textContent = 'Incorrect password. No records were deleted.';
+    return;
+  }
+  if (!confirm(`Delete ${ids.length} selected applicant record${ids.length === 1 ? '' : 's'}?`)) return;
+  button.disabled = true;
+  try {
+    await portalFirebaseAuthReady;
+    const batch = portalFirestore.batch();
+    ids.forEach((id) => batch.delete(portalFirestore.collection('sentHistory').doc(id)));
+    await batch.commit();
+  } catch (error) {
+    console.error('Could not delete selected applicant details', error);
+    document.querySelector('#applicantDetailsStatus').textContent = 'Could not delete selected records.';
+    button.disabled = false;
+  }
+});
 
 function formatMedicalDate(value) {
   const date = new Date(value);
@@ -1658,6 +1792,7 @@ loadPackageForms();
 updateSelectedPackages();
 loadMedicalForms();
 initializeSentEmailHistory();
+initializeApplicantDetails();
 initializeHistoryTrendToggle();
 const historyTrendMonthInput = document.querySelector('#historyTrendMonthInput');
 if (historyTrendMonthInput) {
