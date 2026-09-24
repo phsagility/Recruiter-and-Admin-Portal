@@ -51,6 +51,7 @@ const fallbackPackageDefinitions = [
   'Package 15'
 ];
 let packageDefinitions = fallbackPackageDefinitions.map((name) => ({ name, file: `${name}.pdf` }));
+let packageFormsReady = Promise.resolve();
 let checkboxes = [];
 let preEmploymentCheckboxes = [];
 let medicalCheckboxes = [];
@@ -599,12 +600,17 @@ function restorePortalState() {
 
     const storedPackages = JSON.parse(localStorage.getItem(selectedPackagesStorageKey) || 'null');
     const packageState = Array.isArray(storedPackages)
-      ? storedPackages.map((packageName) => ({ package: packageName, checked: true }))
-      : savedState.packages;
+      ? storedPackages
+          .filter((packageName) => String(packageName || '').trim())
+          .map((packageName) => ({ package: String(packageName).trim(), checked: true }))
+      : Array.isArray(savedState.packages)
+        ? savedState.packages.filter((entry) => entry && String(entry.package || '').trim())
+        : [];
     if (Array.isArray(packageState)) {
-      const checkedPackages = new Map(packageState.map((entry) => [entry.package, entry.checked]));
+      const checkedPackages = new Map(packageState.map((entry) => [String(entry.package).trim(), entry.checked]));
       checkboxes.forEach((checkbox) => {
-        checkbox.checked = Boolean(checkedPackages.get(checkbox.dataset.package));
+        const checkboxName = String(checkbox.dataset.package || '').trim();
+        checkbox.checked = Boolean(checkboxName && checkedPackages.get(checkboxName));
       });
       const selectedMedicalPackage = medicalCheckboxes.find((checkbox) => checkbox.checked);
       medicalCheckboxes.forEach((checkbox) => {
@@ -614,7 +620,7 @@ function restorePortalState() {
       if (!Array.isArray(storedPackages)) {
         localStorage.setItem(
           selectedPackagesStorageKey,
-          JSON.stringify(packageState.filter((entry) => entry.checked).map((entry) => entry.package))
+          JSON.stringify(packageState.filter((entry) => entry.checked).map((entry) => String(entry.package).trim()))
         );
       }
     }
@@ -670,8 +676,8 @@ async function loadPackageForms() {
 }
 
 refreshCheckboxCollections();
-const preEmploymentEmailEndpoint = 'https://script.google.com/macros/s/AKfycbwY-ASlmGJWQMtPcABtsoXuRCwFED3TiwQh05j2XFpX6o1ebs-bTqm6l_jirmE4G14/exec';
-const additionalPreEmploymentEmailEndpoint = 'https://script.google.com/macros/s/AKfycbxnRDA410e-LJHUaOF0d1LOIfLFyLDltaZnbISd-rKRhZkiwkp4vY10N_k5V6-eTUGmqw/exec';
+const preEmploymentEmailEndpoint = 'https://script.google.com/macros/s/AKfycbwnlTNYZ0fVdAyAckNtIB0AE8rz_lQvcIlaQ0P4pvXV8kVTdxSyr8TSiDgrZn3H1ira/exec';
+const additionalPreEmploymentEmailEndpoint = 'https://script.google.com/macros/s/AKfycbzvQzOluL-9gQE4cLdV9ai-bbzRpzde39Uus3DEOoYfVE-wwiDcikfoCN7bEgN86yk1/exec';
 const medicalEmailEndpoint = 'https://script.google.com/macros/s/AKfycby0GuvNfqRGmJCHKvj9Xq7ch6pRDiQNrwQU4kzGkjA5fLVy1muvetx_8KoApOxkhOxH/exec';
 const publicPortalBaseUrl = 'https://phsagility.github.io/Recruiter-and-Admin-Portal';
 const deployedPortalBaseUrl = window.location.protocol === 'http:' || window.location.protocol === 'https:'
@@ -1022,10 +1028,10 @@ function applyProperCaseToInput(input) {
 }
 
 function updateSelectedPackages() {
-  const selected = checkboxes.filter((checkbox) => checkbox.checked);
+  const selected = checkboxes.filter((checkbox) => checkbox.checked && String(checkbox.dataset.package || '').trim());
   const selectedItems = [
     ...(preEmploymentRequirementsCheckbox?.checked ? [{ requirements: true, name: 'Pre Employment Requirements' }] : []),
-    ...selected.map((checkbox) => ({ checkbox, name: checkbox.dataset.package }))
+    ...selected.map((checkbox) => ({ checkbox, name: String(checkbox.dataset.package || '').trim() }))
   ];
   selectedContainer.innerHTML = selectedItems.length
     ? selectedItems.map((item) => item.requirements
@@ -1049,10 +1055,10 @@ function updateSelectedPackages() {
 }
 
 function saveSelectedPackageState() {
-  localStorage.setItem(
-    selectedPackagesStorageKey,
-    JSON.stringify(checkboxes.filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.dataset.package))
-  );
+  const validPackages = checkboxes
+    .filter((checkbox) => checkbox.checked && String(checkbox.dataset.package || '').trim())
+    .map((checkbox) => String(checkbox.dataset.package || '').trim());
+  localStorage.setItem(selectedPackagesStorageKey, JSON.stringify(validPackages));
 }
 
 async function loadMedicalForms() {
@@ -1257,6 +1263,7 @@ clearDataButton?.addEventListener('click', () => {
 });
 
 sendEmailButton?.addEventListener('click', async () => {
+  await packageFormsReady;
   const name = document.querySelector('#candidateNameInput').value.trim();
   const email = document.querySelector('#emailInput').value.trim();
   const contactNumber = contactNumberInput.value.trim();
@@ -1276,10 +1283,14 @@ sendEmailButton?.addEventListener('click', async () => {
   const selectedPreEmploymentCheckboxes = preEmploymentCheckboxes.filter((checkbox) => checkbox.checked);
   const selectedMedicalCheckboxes = medicalCheckboxes.filter((checkbox) => checkbox.checked);
   const buildPortalLink = (relativeLink) => new URL(relativeLink, `${portalBaseUrl}/`);
-  const packages = selectedPreEmploymentCheckboxes.map((checkbox) => ({
-    name: checkbox.dataset.package,
+  const packages = selectedPreEmploymentCheckboxes.map((checkbox) => {
+    const packageName = String(checkbox.dataset.package || '').trim();
+    const packageLink = String(checkbox.dataset.link || '').trim();
+    if (!packageName || !packageLink) return null;
+    return {
+    name: packageName,
     link: (() => {
-    const link = buildPortalLink(checkbox.dataset.link);
+      const link = buildPortalLink(packageLink);
       if (checkbox.dataset.prefill === 'medical') {
         link.searchParams.set('prefill', 'medical');
         link.searchParams.set('name', name);
@@ -1291,15 +1302,21 @@ sendEmailButton?.addEventListener('click', async () => {
       }
       return link.href;
     })()
-  }));
+    };
+  }).filter(Boolean);
   const medicalFieldsRequired = selectedMedicalCheckboxes.length > 0;
-  const missingCommonFields = !name || !email || !location || !account || !accountSubprocess || !recruiter;
+  const requirementOnlyMode = sendPreEmploymentRequirements && !packages.length && !selectedMedicalCheckboxes.length;
+  const missingRequirementFields = !name || !email || !location || !recruiter;
+  const missingPackageFields = !requirementOnlyMode && (!account || !accountSubprocess);
+  const missingCommonFields = missingRequirementFields || missingPackageFields;
   const missingMedicalFields = medicalFieldsRequired && (!contactNumber || !dateOfIssuance || !medicalExamDate || !role || !requestedPackage);
   if (missingCommonFields || missingMedicalFields || (!packages.length && !selectedMedicalCheckboxes.length && !sendPreEmploymentRequirements)) {
     updateRequiredFieldState();
     emailStatus.textContent = medicalFieldsRequired
       ? 'Complete name, email, contact number, location, recruiter, account, account subprocess, date of issuance, medical examination date, role, requested package, and package selection.'
-      : 'Complete name, email, location, recruiter, account, account subprocess, and package selection.';
+      : requirementOnlyMode
+        ? 'Complete name, email, location, and recruiter.'
+        : 'Complete name, email, location, recruiter, account, account subprocess, and package selection.';
     emailStatus.className = 'email-status error';
     return;
   }
@@ -1308,6 +1325,13 @@ sendEmailButton?.addEventListener('click', async () => {
   emailStatus.className = 'email-status sending';
   sendEmailButton.disabled = true;
     const historyPackages = [
+      ...(sendPreEmploymentRequirements ? [{
+        name: 'Pre Employment Requirements',
+        link: '',
+        prefill: '',
+        medicalFile: '',
+        requirements: true
+      }] : []),
       ...selectedPreEmploymentCheckboxes.map((checkbox) => ({
         name: checkbox.dataset.package,
         link: checkbox.dataset.link || '',
@@ -1366,7 +1390,7 @@ sendEmailButton?.addEventListener('click', async () => {
       const sendErrors = [];
       if (packages.length) {
         try {
-          await sendPreEmploymentEmail({ name, email, contactNumber, birthday, age, address, location, account, startDate, accountSubprocess, medicalExamDate, role, requestedPackage, recruiter, packages });
+          await sendPreEmploymentEmail({ isPackageEmail: true, name, email, contactNumber, birthday, age, address, location, account, startDate, accountSubprocess, medicalExamDate, role, requestedPackage, recruiter, packages });
         } catch (error) {
           sendErrors.push('pre-employment forms');
         }
@@ -1386,8 +1410,11 @@ sendEmailButton?.addEventListener('click', async () => {
           sendErrors.push('medical');
         }
       }
-      saveSentEmailHistory(name, email, location, historyPackages, false, historyDetails)
-        .catch((historyError) => console.error('Could not save sent email history', historyError));
+      try {
+        await saveSentEmailHistory(name, email, location, historyPackages, false, historyDetails);
+      } catch (historyError) {
+        console.error('Could not save sent email history', historyError);
+      }
       if (sendErrors.length) console.error(`Queued email errors: ${sendErrors.join(', ')}`);
     }, { name, types: queueTypes });
     emailStatus.textContent = 'Queued for sending. Ready for the next candidate.';
@@ -1562,6 +1589,9 @@ async function sendMedicalFormEmail(details, selectedMedicalCheckboxes) {
 }
 
 function sendPreEmploymentEmail(payload) {
+  if (preEmploymentEmailEndpoint === 'PASTE_PREEMPLOYMENT_FORMS_WEB_APP_URL_HERE') {
+    throw new Error('Pre-employment forms email endpoint is not configured. Deploy Portal-Code.gs and add its web app URL to script.js.');
+  }
   return fetch(preEmploymentEmailEndpoint, {
     method: 'POST',
     mode: 'no-cors',
@@ -1821,7 +1851,7 @@ esignModal?.addEventListener('click', (event) => {
   if (event.target === esignModal) closeEsignForm();
 });
 
-loadPackageForms();
+packageFormsReady = loadPackageForms();
 updateSelectedPackages();
 loadMedicalForms();
 initializeSentEmailHistory();
