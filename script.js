@@ -246,10 +246,22 @@ function getFilteredHistoryRecords() {
 function renderSentEmailHistory() {
   const body = document.querySelector('#sentEmailHistoryBody');
   const records = getFilteredHistoryRecords();
+  const sentItemsLabel = (record) => {
+    const packageNames = (record.packages || [])
+    .map((item) => item.requirements ? 'Pre Employment Requirements' : item.name)
+    .filter(Boolean)
+    .join(', ');
+    const categories = record.sentTypes || {};
+    const requirementsLabel = (categories.requirements || record.requirementsSent) && !packageNames.includes('Pre Employment Requirements')
+      ? 'Pre Employment Requirements'
+      : '';
+    return [packageNames, requirementsLabel].filter(Boolean).join(', ') || 'Not recorded';
+  };
   body.innerHTML = records.length ? records.map((record, index) => `
     <tr>
       <td><input type="checkbox" class="history-delete-checkbox" data-record-id="${escapeHistoryHtml(record.id)}" aria-label="Select record for deletion"></td>
       <td><button class="history-row-button history-view-button" type="button" data-record-id="${escapeHistoryHtml(record.id)}">View</button></td>
+      <td>${escapeHistoryHtml(sentItemsLabel(record))}</td>
       <td>${index + 1}</td>
       <td>${escapeHistoryHtml(record.name)}</td>
       <td>${escapeHistoryHtml(record.email)}</td>
@@ -261,10 +273,10 @@ function renderSentEmailHistory() {
       <td>${escapeHistoryHtml(formatHistoryPosition(record.position || record.role))}</td>
       <td>${escapeHistoryHtml(record.location)}</td>
       <td>${escapeHistoryHtml(record.date)}</td>
-    </tr>`).join('') : '<tr><td colspan="13">No sent email records found</td></tr>';
+    </tr>`).join('') : '<tr><td colspan="14">No sent email records found</td></tr>';
   body.querySelectorAll('.history-view-button').forEach((button) => button.addEventListener('click', () => {
     const record = sentEmailHistoryRecords.find((item) => item.id === button.dataset.recordId);
-    const links = (record?.packages || []).map((item) => `<span class="package-view-name">${escapeHistoryHtml(item.name)}</span>`).join('');
+    const links = (record?.packages || []).map((item) => `<span class="package-view-name">${escapeHistoryHtml(item.requirements ? `${item.name} (Requirements)` : item.name)}</span>`).join('');
     const dialog = document.createElement('dialog');
     dialog.className = 'package-view-dialog';
     dialog.innerHTML = `<h2>Sent packages</h2><div id="packageViewList">${links || '<p>No package links saved for this record.</p>'}</div><div class="package-view-actions"><button class="package-view-send" type="button"${record?.packages?.length ? '' : ' disabled'}>Sent</button><button class="package-view-close-action" type="button">Close</button></div><p class="package-view-status" role="status" aria-live="polite"></p>`;
@@ -314,6 +326,7 @@ async function saveSentEmailHistory(name, email, location, packages, isFollowUp 
     location,
     ...details,
     packages,
+    requirementsSent: packages.some((item) => item && item.requirements === true),
     isFollowUp,
     timestamp: Date.now(),
     date: new Date().toLocaleString('en-PH')
@@ -1280,7 +1293,8 @@ sendEmailButton?.addEventListener('click', async () => {
   const requestedPackage = requestedPackageInput.value;
   const recruiter = recruiterInput.value;
   const sendPreEmploymentRequirements = Boolean(preEmploymentRequirementsCheckbox?.checked);
-  const selectedPreEmploymentCheckboxes = preEmploymentCheckboxes.filter((checkbox) => checkbox.checked);
+  const selectedPreEmploymentCheckboxes = preEmploymentCheckboxes
+    .filter((checkbox) => checkbox !== preEmploymentRequirementsCheckbox && checkbox.checked);
   const selectedMedicalCheckboxes = medicalCheckboxes.filter((checkbox) => checkbox.checked);
   const buildPortalLink = (relativeLink) => new URL(relativeLink, `${portalBaseUrl}/`);
   const packages = selectedPreEmploymentCheckboxes.map((checkbox) => {
@@ -1379,6 +1393,11 @@ sendEmailButton?.addEventListener('click', async () => {
         medicalExamDate,
         role,
         requestedPackage
+      },
+      sentTypes: {
+        forms: packages.length > 0,
+        requirements: sendPreEmploymentRequirements,
+        medical: selectedMedicalCheckboxes.length > 0
       }
     };
     const queueTypes = [
@@ -1386,6 +1405,13 @@ sendEmailButton?.addEventListener('click', async () => {
       sendPreEmploymentRequirements ? 'Sending Requirements' : '',
       selectedMedicalCheckboxes.length ? 'Medical' : ''
     ].filter(Boolean).join(', ');
+    try {
+      await saveSentEmailHistory(name, email, location, historyPackages, false, historyDetails);
+    } catch (historyError) {
+      console.error('Could not save sent email history before sending', historyError);
+      emailStatus.textContent = 'Email queued, but history could not be saved.';
+      emailStatus.className = 'email-status error';
+    }
     enqueueEmailJob(async () => {
       const sendErrors = [];
       if (packages.length) {
@@ -1409,11 +1435,6 @@ sendEmailButton?.addEventListener('click', async () => {
           console.error('Medical email request failed', error);
           sendErrors.push('medical');
         }
-      }
-      try {
-        await saveSentEmailHistory(name, email, location, historyPackages, false, historyDetails);
-      } catch (historyError) {
-        console.error('Could not save sent email history', historyError);
       }
       if (sendErrors.length) console.error(`Queued email errors: ${sendErrors.join(', ')}`);
     }, { name, types: queueTypes });
@@ -1623,8 +1644,12 @@ function isHistoryMedicalPackage(item) {
   return item.prefill === 'medical' || item.medicalFile || String(item.link || '').includes('Medical%20Forms') || String(item.link || '').includes('Medical Forms');
 }
 
+function isHistoryRequirementsPackage(item) {
+  return item.requirements === true || String(item.name || '').trim().toLowerCase() === 'pre employment requirements';
+}
+
 async function sendPreEmploymentPackageEmails(record) {
-  const packages = (record.packages || []).filter((item) => !isHistoryMedicalPackage(item));
+  const packages = (record.packages || []).filter((item) => !isHistoryMedicalPackage(item) && !isHistoryRequirementsPackage(item));
   const candidate = record.candidateInformation || {};
   const other = record.otherInformation || {};
   const medical = record.medicalInformation || {};
@@ -1649,14 +1674,18 @@ async function sendPreEmploymentPackageEmails(record) {
     recruiter,
     packages
   };
-  if (!packages.length) return;
-  await Promise.all([
-    sendPreEmploymentEmail({ ...payload, isFollowUp: true }),
-    sendAdditionalPreEmploymentEmail(
-      { name: record.name, email: record.email, location: record.location, recruiter: record.recruiter || '' },
+  const requirements = (record.packages || []).filter(isHistoryRequirementsPackage);
+  const requests = [];
+  if (packages.length) {
+    requests.push(sendPreEmploymentEmail({ ...payload, isFollowUp: true }));
+  }
+  if (requirements.length) {
+    requests.push(sendAdditionalPreEmploymentEmail(
+      { name, email, location, recruiter },
       packages
-    )
-  ]);
+    ));
+  }
+  if (requests.length) await Promise.all(requests);
 }
 
 async function sendHistoryRecordEmails(record) {
