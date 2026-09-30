@@ -106,29 +106,22 @@
   ];
 
   let previousIndex = -1;
-  let dismissTimer;
-  let hideTimer;
+  let rotationTimer;
 
-  window.showMotivationalQuote = () => {
+  function showNextQuote() {
     let nextIndex = Math.floor(Math.random() * quotes.length);
     if (quotes.length > 1 && nextIndex === previousIndex) {
       nextIndex = (nextIndex + 1) % quotes.length;
     }
     previousIndex = nextIndex;
-
-    window.clearTimeout(dismissTimer);
-    window.clearTimeout(hideTimer);
     toast.textContent = quotes[nextIndex];
-    toast.hidden = false;
-    toast.classList.remove('is-visible');
-    void toast.offsetWidth;
-    toast.classList.add('is-visible');
+  }
 
-    dismissTimer = window.setTimeout(() => {
-      toast.classList.remove('is-visible');
-      hideTimer = window.setTimeout(() => {
-        if (!toast.classList.contains('is-visible')) toast.hidden = true;
-      }, 350);
-    }, 20000);
+  window.showMotivationalQuote = () => {
+    window.clearInterval(rotationTimer);
+    showNextQuote();
+    toast.hidden = false;
+    toast.classList.add('is-visible');
+    rotationTimer = window.setInterval(showNextQuote, 10000);
   };
 })();
