@@ -7,9 +7,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=mobile-header-1">
+  <link rel="stylesheet" href="style.css?v=vertically-centered-header-toast-2026-09-30">
 </head>
 <body class="portal-locked">
+  <div id="motivationToast" class="motivation-toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
   <main id="portalLoginView" class="portal-login-view" aria-labelledby="portalLoginTitle">
     <section class="portal-login-card">
       <img class="portal-login-logo" src="logo%20dark.png" alt="Sagility">
@@ -28,7 +29,7 @@
   </main>
 
   <header class="top">
-    <div class="logo"><img src="logo.png" alt="Sagility Logo" class="logo-img"></div>
+    <div class="logo"><img src="logo%20dark.png" alt="Sagility Logo" class="logo-img"></div>
     <div class="header-text-box">
       <h1>RECRUITER and ADMIN PH <span>PORTAL</span></h1>
       <p>This tool is designed for pre-employment and medical forms. It is intended for internal use only.</p>
@@ -172,6 +173,15 @@
     </div>
   </main>
 
+  <section class="card pre-employment-requirements-inline">
+    <h3>Pre-Employment Requirements</h3>
+    <p class="packages-subtitle">Select this option to send the pre-employment requirements email to your candidate.</p>
+    <label class="package-item requirements-checkbox-item">
+      <input id="preEmploymentRequirementsCheckbox" class="package-checkbox" type="checkbox">
+      <div class="package-checkbox-visual"></div>
+      <div class="package-info"><span class="package-name">Pre Employment Requirements</span></div>
+    </label>
+  </section>
   <section class="card assessment-packages-full">
     <h2>Pre-Employment Packages</h2>
     <p class="packages-subtitle">Select multiple packages to send eSign forms to your candidates.</p>
@@ -218,15 +228,6 @@
         </div>
       </div>
     </div>
-  </section>
-  <section class="card pre-employment-requirements-inline">
-    <h3>Pre-Employment Requirement</h3>
-    <p class="packages-subtitle">Select this option to send the pre-employment requirements email to your candidate.</p>
-    <label class="package-item requirements-checkbox-item">
-      <input id="preEmploymentRequirementsCheckbox" class="package-checkbox" type="checkbox">
-      <div class="package-checkbox-visual"></div>
-      <div class="package-info"><span class="package-name">Pre Employment Requirements</span></div>
-    </label>
   </section>
   <section class="card medical-forms-full">
     <h2>Medical Forms</h2>
@@ -310,8 +311,10 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="theme.js?v=theme-switch-1"></script>
+  <script src="motivational-toast.js?v=20-seconds-2026-09-30"></script>
   <script src="portal-login.js?v=sagi-notes-auth-2"></script>
-  <script src="script.js?v=requirements-history-4"></script>
+  <script src="script.js?v=green-package-pills-2026-09-30"></script>
   <script>
     document.getElementById('closeResourceMenu').addEventListener('click', () => {
       document.querySelector('.resource-menu').open = false;

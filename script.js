@@ -1055,7 +1055,7 @@ function updateSelectedPackages() {
       </div>
     `
       : `
-      <div class="pkg ${item.checkbox.dataset.prefill === 'medical' ? `medical-${item.checkbox.dataset.medicalColumn || 'purple'}` : 'blue'}">
+      <div class="pkg ${item.checkbox.dataset.prefill === 'medical' ? `medical-${item.checkbox.dataset.medicalColumn || 'purple'}` : 'green'}">
         <div class="pkg-name"><span class="pkg-check" aria-hidden="true">✓</span><span class="pkg-link">${item.name}</span></div>
         <button class="pkg-remove" type="button" data-package="${item.name}" aria-label="Remove ${item.name}">✕</button>
       </div>
@@ -1276,6 +1276,7 @@ clearDataButton?.addEventListener('click', () => {
 });
 
 sendEmailButton?.addEventListener('click', async () => {
+  window.showMotivationalQuote?.();
   await packageFormsReady;
   const name = document.querySelector('#candidateNameInput').value.trim();
   const email = document.querySelector('#emailInput').value.trim();

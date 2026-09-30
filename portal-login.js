@@ -91,6 +91,7 @@
     document.documentElement.classList.remove('portal-login-locked');
     document.body.classList.remove('portal-locked');
     loginView.remove();
+    window.showMotivationalQuote?.();
     scheduleSessionExpiry();
   }
 

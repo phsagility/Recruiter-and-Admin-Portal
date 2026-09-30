@@ -51,7 +51,7 @@ const properNameFieldNames = ['completeName', 'motherLastName', 'motherFirstName
 properNameFieldNames.forEach((fieldName) => {
   const field = form.querySelector(`[name="${fieldName}"]`);
   if (!field) return;
-  field.addEventListener('input', () => {
+  field.addEventListener('blur', () => {
     field.value = normalizeProperCaseName(field.value);
   });
 });
