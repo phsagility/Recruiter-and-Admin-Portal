@@ -21,6 +21,7 @@ function doPost(e) {
     var pdfBase64 = String(data.pdfBase64 || '').trim();
     var safeName = name.replace(/[^\w\s.-]/g, '').replace(/\s+/g, ' ').trim() || 'Applicant';
     var filename = String(data.filename || 'Sagility eSign Forms_' + safeName + '.pdf').trim();
+    if (!/\.pdf$/i.test(filename)) filename += '.pdf';
     var requestId = String(data.requestId || '');
 
     if (!email || !name || !pdfBase64) {
